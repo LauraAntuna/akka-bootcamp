@@ -34,6 +34,11 @@ namespace ChartApp.Actors
             public Dictionary<string, Series> InitialSeries { get; private set; }
         }
 
+        public class UpdateAxis
+        {
+            public UpdateAxis() {}
+        }
+
         /// <summary>
         /// Add a new <see cref="Series"/> to the chart
         /// </summary>
@@ -89,6 +94,7 @@ namespace ChartApp.Actors
             Receive<AddSeries>(addSeries => HandleAddSeries(addSeries));
             Receive<RemoveSeries>(removeSeries => HandleRemoveSeries(removeSeries));
             Receive<Metric>(metric => HandleMetrics(metric));
+            Receive<UpdateAxis>(updateAxis => HandleUpdateAxis());
 
             Receive<TogglePause>(pause =>
             {
@@ -102,6 +108,7 @@ namespace ChartApp.Actors
             Receive<AddSeries>(addSeries => Stash.Stash());
             Receive<RemoveSeries>(removeSeries => Stash.Stash());
             Receive<Metric>(metric => HandleMetricsPaused(metric));
+            Receive<UpdateAxis>(updateAxis => HandleUpdateAxis());
             Receive<TogglePause>(pause =>
             {
                 SetPauseButtonText(false);
@@ -154,7 +161,7 @@ namespace ChartApp.Actors
             {
                 _seriesIndex.Add(series.Series.Name, series.Series);
                 _chart.Series.Add(series.Series);
-                SetChartBoundaries();
+                SetYBoundary();
             }
         }
 
@@ -166,7 +173,7 @@ namespace ChartApp.Actors
                 var seriesToRemove = _seriesIndex[series.SeriesName];
                 _seriesIndex.Remove(series.SeriesName);
                 _chart.Series.Remove(seriesToRemove);
-                SetChartBoundaries();
+                SetYBoundary();
             }
         }
 
@@ -176,9 +183,9 @@ namespace ChartApp.Actors
                 _seriesIndex.ContainsKey(metric.Series))
             {
                 var series = _seriesIndex[metric.Series];
-                series.Points.AddXY(xPosCounter++, metric.CounterValue);
+                series.Points.AddXY(xPosCounter, metric.CounterValue);
                 while (series.Points.Count > MaxPoints) series.Points.RemoveAt(0);
-                SetChartBoundaries();
+                SetYBoundary();
             }
         }
 
@@ -189,10 +196,16 @@ namespace ChartApp.Actors
             {
                 var series = _seriesIndex[metric.Series];
                 // set the Y value to zero when we're paused
-                series.Points.AddXY(xPosCounter++, 0.0d);
+                series.Points.AddXY(xPosCounter, 0.0d);
                 while (series.Points.Count > MaxPoints) series.Points.RemoveAt(0);
-                SetChartBoundaries();
+                SetYBoundary();
             }
+        }
+
+        private void HandleUpdateAxis()
+        {
+            xPosCounter++;
+            SetXBoundary();
         }
 
         #endregion
@@ -211,6 +224,31 @@ namespace ChartApp.Actors
                 var area = _chart.ChartAreas[0];
                 area.AxisX.Minimum = minAxisX;
                 area.AxisX.Maximum = maxAxisX;
+                area.AxisY.Minimum = minAxisY;
+                area.AxisY.Maximum = maxAxisY;
+            }
+        }
+
+        private void SetXBoundary()
+        {
+            double maxAxisX, minAxisX = 0.0d;
+            maxAxisX = xPosCounter;
+            minAxisX = xPosCounter - MaxPoints;
+            var area = _chart.ChartAreas[0];
+            area.AxisX.Minimum = minAxisX;
+            area.AxisX.Maximum = maxAxisX;
+        }
+
+        private void SetYBoundary()
+        {
+            double maxAxisY, minAxisY = 0.0d;
+            var allPoints = _seriesIndex.Values.SelectMany(series => series.Points).ToList();
+            var yValues = allPoints.SelectMany(point => point.YValues).ToList();
+            maxAxisY = yValues.Count > 0 ? Math.Ceiling(yValues.Max()) : 1.0d;
+            minAxisY = yValues.Count > 0 ? Math.Floor(yValues.Min()) : 0.0d;
+            if (allPoints.Count > 2)
+            {
+                var area = _chart.ChartAreas[0];
                 area.AxisY.Minimum = minAxisY;
                 area.AxisY.Maximum = maxAxisY;
             }

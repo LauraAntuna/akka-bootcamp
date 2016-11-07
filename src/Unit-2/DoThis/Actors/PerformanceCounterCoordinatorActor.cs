@@ -83,6 +83,36 @@ namespace ChartApp.Actors
         private Dictionary<CounterType, IActorRef> _counterActors;
 
         private IActorRef _chartingActor;
+        private readonly ICancelable _cancelPublishing;
+
+        protected override void PreStart()
+        {
+            //create a new instance of the performance counter
+            Context.System.Scheduler.ScheduleTellRepeatedly(
+                TimeSpan.FromMilliseconds(250),
+                TimeSpan.FromMilliseconds(250),
+                _chartingActor,
+                new ChartingActor.UpdateAxis(),
+                Self,
+                _cancelPublishing);
+        }
+
+        protected override void PostStop()
+        {
+            try
+            {
+                //terminate the scheduled task
+                _cancelPublishing.Cancel(false);
+            }
+            catch
+            {
+                //don't care about additional "ObjectDisposed" exceptions
+            }
+            finally
+            {
+                base.PostStop();
+            }
+        }
 
         public PerformanceCounterCoordinatorActor(IActorRef chartingActor) :
             this(chartingActor, new Dictionary<CounterType, IActorRef>())
@@ -94,6 +124,7 @@ namespace ChartApp.Actors
         {
             _chartingActor = chartingActor;
             _counterActors = counterActors;
+            _cancelPublishing = new Cancelable(Context.System.Scheduler);
 
             Receive<Watch>(watch =>
             {
