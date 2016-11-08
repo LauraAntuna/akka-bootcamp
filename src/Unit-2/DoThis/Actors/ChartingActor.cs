@@ -18,7 +18,7 @@ namespace ChartApp.Actors
         /// <summary>
         /// Incrementing counter we use to plot along the X-axis
         /// </summary>
-        private int xPosCounter = 0;
+        private int _xPosCounter = 0;
 
         public IStash Stash { get; set; }
 
@@ -36,7 +36,6 @@ namespace ChartApp.Actors
 
         public class UpdateAxis
         {
-            public UpdateAxis() {}
         }
 
         /// <summary>
@@ -183,7 +182,7 @@ namespace ChartApp.Actors
                 _seriesIndex.ContainsKey(metric.Series))
             {
                 var series = _seriesIndex[metric.Series];
-                series.Points.AddXY(xPosCounter, metric.CounterValue);
+                series.Points.AddXY(_xPosCounter, metric.CounterValue);
                 while (series.Points.Count > MaxPoints) series.Points.RemoveAt(0);
                 SetYBoundary();
             }
@@ -196,7 +195,7 @@ namespace ChartApp.Actors
             {
                 var series = _seriesIndex[metric.Series];
                 // set the Y value to zero when we're paused
-                series.Points.AddXY(xPosCounter, 0.0d);
+                series.Points.AddXY(_xPosCounter, 0.0d);
                 while (series.Points.Count > MaxPoints) series.Points.RemoveAt(0);
                 SetYBoundary();
             }
@@ -204,7 +203,7 @@ namespace ChartApp.Actors
 
         private void HandleUpdateAxis()
         {
-            xPosCounter++;
+            _xPosCounter++;
             SetXBoundary();
         }
 
@@ -212,11 +211,11 @@ namespace ChartApp.Actors
 
         private void SetChartBoundaries()
         {
-            double maxAxisX, maxAxisY, minAxisX, minAxisY = 0.0d;
+            double maxAxisX, maxAxisY, minAxisX, minAxisY;
             var allPoints = _seriesIndex.Values.SelectMany(series => series.Points).ToList();
             var yValues = allPoints.SelectMany(point => point.YValues).ToList();
-            maxAxisX = xPosCounter;
-            minAxisX = xPosCounter - MaxPoints;
+            maxAxisX = _xPosCounter;
+            minAxisX = _xPosCounter - MaxPoints;
             maxAxisY = yValues.Count > 0 ? Math.Ceiling(yValues.Max()) : 1.0d;
             minAxisY = yValues.Count > 0 ? Math.Floor(yValues.Min()) : 0.0d;
             if (allPoints.Count > 2)
@@ -231,9 +230,9 @@ namespace ChartApp.Actors
 
         private void SetXBoundary()
         {
-            double maxAxisX, minAxisX = 0.0d;
-            maxAxisX = xPosCounter;
-            minAxisX = xPosCounter - MaxPoints;
+            double minAxisX;
+            double maxAxisX = _xPosCounter;
+            minAxisX = _xPosCounter - MaxPoints;
             var area = _chart.ChartAreas[0];
             area.AxisX.Minimum = minAxisX;
             area.AxisX.Maximum = maxAxisX;
@@ -241,7 +240,7 @@ namespace ChartApp.Actors
 
         private void SetYBoundary()
         {
-            double maxAxisY, minAxisY = 0.0d;
+            double maxAxisY, minAxisY;
             var allPoints = _seriesIndex.Values.SelectMany(series => series.Points).ToList();
             var yValues = allPoints.SelectMany(point => point.YValues).ToList();
             maxAxisY = yValues.Count > 0 ? Math.Ceiling(yValues.Max()) : 1.0d;
